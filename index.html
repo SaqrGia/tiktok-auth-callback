@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استقبال مصادقة TikTok</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+        }
+        .code-box {
+            background-color: #eee;
+            padding: 10px;
+            border-radius: 5px;
+            word-break: break-all;
+            margin: 10px 0;
+            direction: ltr;
+            text-align: left;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 10px;
+            background-color: #0095f6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>صفحة استقبال مصادقة TikTok</h1>
+    
+    <div class="card">
+        <div id="result">جاري معالجة البيانات...</div>
+        
+        <div id="code-container" style="display: none;">
+            <h3>رمز المصادقة:</h3>
+            <div class="code-box" id="code-value"></div>
+            <button id="copy-code">نسخ الرمز</button>
+        </div>
+        
+        <div id="error-container" style="display: none;">
+            <h3 class="error">حدث خطأ:</h3>
+            <div class="code-box" id="error-value"></div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // استخراج معلمات URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const error = urlParams.get('error');
+            const errorType = urlParams.get('error_type');
+            const errorString = urlParams.get('error_string');
+            
+            if (code) {
+                // تم استلام رمز بنجاح
+                document.getElementById('result').innerHTML = '<p class="success">تم استلام رمز المصادقة بنجاح!</p>';
+                document.getElementById('code-value').textContent = code;
+                document.getElementById('code-container').style.display = 'block';
+                
+                // نسخ الرمز عند النقر على الزر
+                document.getElementById('copy-code').addEventListener('click', function() {
+                    navigator.clipboard.writeText(code).then(function() {
+                        alert('تم نسخ الرمز بنجاح!');
+                    });
+                });
+            } else if (error) {
+                // حدث خطأ
+                document.getElementById('result').innerHTML = '<p class="error">فشلت عملية المصادقة</p>';
+                document.getElementById('error-value').textContent = `خطأ: ${error}\nنوع الخطأ: ${errorType || 'غير محدد'}\nرسالة الخطأ: ${errorString || 'غير محددة'}`;
+                document.getElementById('error-container').style.display = 'block';
+            } else {
+                document.getElementById('result').innerHTML = '<p>لم يتم العثور على بيانات المصادقة في العنوان.</p>';
+            }
+        });
+    </script>
+</body>
+</html>
