@@ -11,377 +11,90 @@
             margin: 0 auto;
             padding: 20px;
             text-align: center;
-            background-color: #f8f8f8;
         }
         .card {
             border: 1px solid #ddd;
-            border-radius: 12px;
-            padding: 24px;
-            margin-top: 24px;
-            background-color: #ffffff;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            background-color: #f9f9f9;
         }
         .code-box {
-            background-color: #f5f5f5;
-            padding: 12px;
-            border-radius: 6px;
+            background-color: #eee;
+            padding: 10px;
+            border-radius: 5px;
             word-break: break-all;
-            margin: 16px 0;
+            margin: 10px 0;
             direction: ltr;
             text-align: left;
-            font-family: monospace;
-            font-size: 14px;
-            border: 1px solid #e0e0e0;
-            display: none;
         }
         .success {
-            color: #28a745;
+            color: green;
             font-weight: bold;
         }
         .error {
-            color: #dc3545;
+            color: red;
             font-weight: bold;
         }
-        .warning {
-            color: #ffc107;
-            font-weight: bold;
-        }
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            border-left-color: #000000;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .icon {
-            font-size: 48px;
-            margin: 10px 0;
-        }
-        .btn {
-            padding: 10px 16px;
-            background-color: #000000;
+        button {
+            padding: 10px 15px;
+            margin: 10px;
+            background-color: #0095f6;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 14px;
-            margin: 8px;
-        }
-        .btn:hover {
-            background-color: #333333;
-        }
-        .btn-outline {
-            background-color: transparent;
-            color: #000000;
-            border: 1px solid #000000;
-        }
-        .btn-outline:hover {
-            background-color: rgba(0, 0, 0, 0.1);
-        }
-        #debug-info {
-            font-size: 12px;
-            color: #666;
-            margin-top: 20px;
-            text-align: left;
-            direction: ltr;
-            display: none;
         }
     </style>
 </head>
 <body>
-    <h1>مصادقة تيك توك</h1>
+    <h1>صفحة استقبال مصادقة TikTok</h1>
     
     <div class="card">
-        <div id="result">
-            <p>جاري معالجة بيانات المصادقة...</p>
-            <div class="spinner"></div>
-            <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">10</span> ثوانٍ...</p>
-        </div>
+        <div id="result">جاري معالجة البيانات...</div>
         
         <div id="code-container" style="display: none;">
             <h3>رمز المصادقة:</h3>
             <div class="code-box" id="code-value"></div>
-            <div>
-                <button id="copy-code" class="btn">نسخ الرمز</button>
-                <button id="return-to-app" class="btn">العودة إلى التطبيق</button>
-            </div>
+            <button id="copy-code">نسخ الرمز</button>
         </div>
         
-        <div id="debug-info"></div>
+        <div id="error-container" style="display: none;">
+            <h3 class="error">حدث خطأ:</h3>
+            <div class="code-box" id="error-value"></div>
+        </div>
     </div>
     
     <script>
-        // تكوين العرض التشخيصي (للمطورين)
-        const DEBUG_MODE = false;
-        
-        // اسم التطبيق والمخطط
-        const APP_SCHEME = 'facebookpostmanager://';
-        const AUTH_CALLBACK_PATH = 'auth/tiktok';
-        
         document.addEventListener('DOMContentLoaded', function() {
             // استخراج معلمات URL
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
-            const state = urlParams.get('state');
             const error = urlParams.get('error');
             const errorType = urlParams.get('error_type');
-            const errorDescription = urlParams.get('error_description');
+            const errorString = urlParams.get('error_string');
             
-            // للاستخدام التشخيصي
-            if (DEBUG_MODE) {
-                document.getElementById('debug-info').style.display = 'block';
-                document.getElementById('debug-info').innerHTML = 
-                    `<strong>معلمات URL:</strong><br>` +
-                    `code: ${code || 'N/A'}<br>` +
-                    `state: ${state || 'N/A'}<br>` +
-                    `error: ${error || 'N/A'}<br>` +
-                    `error_type: ${errorType || 'N/A'}<br>` +
-                    `error_description: ${errorDescription || 'N/A'}<br>` +
-                    `<strong>وكيل المستخدم:</strong> ${navigator.userAgent}`;
-            }
-            
-            // معالجة رمز المصادقة أو الخطأ
             if (code) {
-                handleAuthCode(code, state);
-            } else if (error) {
-                handleAuthError(error, errorType, errorDescription);
-            } else {
-                handleNoParams();
-            }
-        });
-        
-        // معالجة رمز المصادقة
-        function handleAuthCode(code, state) {
-            // تنظيف الرمز - إذا كان يحتوي على علامات خاصة
-            let cleanCode = code;
-            
-            // تنظيف المعلمات مثل * أو #
-            if (code.includes('*')) {
-                cleanCode = code.split('*')[0];
-                console.log('تم تنظيف الرمز لإزالة المحتوى بعد "*"');
-            }
-            
-            if (code.includes('#')) {
-                cleanCode = code.split('#')[0];
-                console.log('تم تنظيف الرمز لإزالة المحتوى بعد "#"');
-            }
-            
-            // حفظ الرمز في التخزين المحلي كاحتياط
-            try {
-                localStorage.setItem('tiktok_auth_code', cleanCode);
-                localStorage.setItem('tiktok_auth_time', Date.now().toString());
-                console.log('تم تخزين الرمز في localStorage');
-            } catch (e) {
-                console.error('فشل تخزين الرمز:', e);
-            }
-            
-            // تحديث واجهة المستخدم
-            document.getElementById('result').innerHTML = `
-                <div class="icon">✅</div>
-                <p class="success">تم استلام رمز المصادقة بنجاح!</p>
-                <p>تم إكمال عملية المصادقة. يمكنك العودة إلى التطبيق الآن.</p>
-                <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">10</span> ثوانٍ...</p>
-                <div>
-                    <button id="return-to-app-btn" class="btn">العودة إلى التطبيق</button>
-                </div>
-            `;
-            
-            // إضافة مستمع الحدث لزر العودة
-            document.getElementById('return-to-app-btn').addEventListener('click', function() {
-                returnToApp(cleanCode, state);
-            });
-            
-            // عرض الرمز في وضع التصحيح
-            if (DEBUG_MODE) {
+                // تم استلام رمز بنجاح
+                document.getElementById('result').innerHTML = '<p class="success">تم استلام رمز المصادقة بنجاح!</p>';
+                document.getElementById('code-value').textContent = code;
                 document.getElementById('code-container').style.display = 'block';
-                document.getElementById('code-value').textContent = cleanCode;
                 
-                // إضافة وظيفة نسخ الرمز
+                // نسخ الرمز عند النقر على الزر
                 document.getElementById('copy-code').addEventListener('click', function() {
-                    navigator.clipboard.writeText(cleanCode).then(function() {
+                    navigator.clipboard.writeText(code).then(function() {
                         alert('تم نسخ الرمز بنجاح!');
                     });
                 });
-                
-                // إضافة وظيفة العودة إلى التطبيق
-                document.getElementById('return-to-app').addEventListener('click', function() {
-                    returnToApp(cleanCode, state);
-                });
+            } else if (error) {
+                // حدث خطأ
+                document.getElementById('result').innerHTML = '<p class="error">فشلت عملية المصادقة</p>';
+                document.getElementById('error-value').textContent = `خطأ: ${error}\nنوع الخطأ: ${errorType || 'غير محدد'}\nرسالة الخطأ: ${errorString || 'غير محددة'}`;
+                document.getElementById('error-container').style.display = 'block';
+            } else {
+                document.getElementById('result').innerHTML = '<p>لم يتم العثور على بيانات المصادقة في العنوان.</p>';
             }
-            
-            // محاولة الاتصال التلقائي بالتطبيق
-            setTimeout(function() {
-                returnToApp(cleanCode, state);
-            }, 1000);
-            
-            // بدء العد التنازلي لإغلاق النافذة
-            startCountdown(10);
-        }
-        
-        // إعادة التوجيه إلى التطبيق مع رمز المصادقة
-        function returnToApp(code, state) {
-            try {
-                // بناء URI
-                const appUri = `${APP_SCHEME}${AUTH_CALLBACK_PATH}?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
-                
-                // استخدام iframe مخفي
-                const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                iframe.src = appUri;
-                document.body.appendChild(iframe);
-                
-                // إزالة iframe بعد فترة وجيزة
-                setTimeout(() => {
-                    document.body.removeChild(iframe);
-                }, 500);
-                
-                // أيضًا محاولة استخدام window.location
-                setTimeout(() => {
-                    window.location.href = appUri;
-                }, 1000);
-                
-                console.log('تمت محاولة الاتصال بالتطبيق باستخدام URI:', appUri);
-            } catch (e) {
-                console.error('فشل الاتصال بالتطبيق:', e);
-            }
-        }
-        
-        // معالجة خطأ المصادقة
-        function handleAuthError(error, errorType, errorDescription) {
-            document.getElementById('result').innerHTML = `
-                <div class="icon">❌</div>
-                <p class="error">فشلت عملية المصادقة</p>
-                <p>سبب الخطأ: ${errorDescription || error || 'غير معروف'}</p>
-                <p>يرجى المحاولة مرة أخرى أو استخدام طريقة مصادقة مختلفة.</p>
-                <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">10</span> ثوانٍ...</p>
-                <div>
-                    <button id="return-to-app-error-btn" class="btn">العودة إلى التطبيق</button>
-                </div>
-            `;
-            
-            // إضافة مستمع الحدث لزر العودة
-            document.getElementById('return-to-app-error-btn').addEventListener('click', function() {
-                returnToAppWithError(error, errorType, errorDescription);
-            });
-            
-            // حفظ معلومات الخطأ
-            try {
-                localStorage.setItem('tiktok_auth_error', error || '');
-                localStorage.setItem('tiktok_auth_error_description', errorDescription || '');
-                localStorage.setItem('tiktok_auth_error_time', Date.now().toString());
-            } catch (e) {
-                console.error('فشل تخزين معلومات الخطأ:', e);
-            }
-            
-            // محاولة إرسال الخطأ إلى التطبيق تلقائيًا
-            setTimeout(function() {
-                returnToAppWithError(error, errorType, errorDescription);
-            }, 1000);
-            
-            // بدء العد التنازلي لإغلاق الصفحة
-            startCountdown(10);
-        }
-        
-        // معالجة الحالة بدون معلمات
-        function handleNoParams() {
-            document.getElementById('result').innerHTML = `
-                <div class="icon">ℹ️</div>
-                <p class="warning">لم يتم العثور على بيانات المصادقة</p>
-                <p>قد تكون هذه الصفحة قد فُتحت بشكل مباشر دون عملية مصادقة.</p>
-                <p>يرجى العودة إلى التطبيق وإعادة المحاولة.</p>
-                <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">5</span> ثوانٍ...</p>
-                <div>
-                    <button id="return-to-app-empty-btn" class="btn">العودة إلى التطبيق</button>
-                </div>
-            `;
-            
-            // إضافة مستمع الحدث لزر العودة
-            document.getElementById('return-to-app-empty-btn').addEventListener('click', function() {
-                window.location.href = `${APP_SCHEME}${AUTH_CALLBACK_PATH}/cancel`;
-            });
-            
-            // بدء العد التنازلي لإغلاق الصفحة
-            startCountdown(5);
-        }
-        
-        // إعادة التوجيه إلى التطبيق مع معلومات الخطأ
-        function returnToAppWithError(error, errorType, errorDescription) {
-            try {
-                const appUri = `${APP_SCHEME}${AUTH_CALLBACK_PATH}/error?error=${encodeURIComponent(error || '')}&error_type=${encodeURIComponent(errorType || '')}&error_description=${encodeURIComponent(errorDescription || '')}`;
-                
-                // استخدام iframe مخفي
-                const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                iframe.src = appUri;
-                document.body.appendChild(iframe);
-                
-                // إزالة iframe بعد فترة وجيزة
-                setTimeout(() => {
-                    document.body.removeChild(iframe);
-                }, 500);
-                
-                // أيضًا محاولة استخدام window.location
-                setTimeout(() => {
-                    window.location.href = appUri;
-                }, 1000);
-                
-                console.log('تمت محاولة الاتصال بالتطبيق لنقل الخطأ');
-            } catch (e) {
-                console.error('فشل الاتصال بالتطبيق لنقل الخطأ:', e);
-            }
-        }
-        
-        // دالة العد التنازلي وإغلاق النافذة
-        function startCountdown(seconds) {
-            const countdownElement = document.getElementById('seconds');
-            if (!countdownElement) return;
-            
-            countdownElement.textContent = seconds;
-            
-            const interval = setInterval(() => {
-                seconds--;
-                
-                if (seconds <= 0) {
-                    clearInterval(interval);
-                    closeWindow();
-                } else {
-                    countdownElement.textContent = seconds;
-                }
-            }, 1000);
-        }
-        
-        // محاولة إغلاق النافذة
-        function closeWindow() {
-            try {
-                // للنوافذ التي تم فتحها بواسطة JavaScript
-                window.close();
-                
-                // للنوافذ التي كانت مفتوحة بالفعل
-                if (!window.closed) {
-                    document.getElementById('result').innerHTML = `
-                        <p class="warning">لم نتمكن من إغلاق النافذة تلقائيًا</p>
-                        <p>يمكنك إغلاق هذه النافذة والعودة إلى التطبيق.</p>
-                        <button id="try-close" class="btn">محاولة إغلاق النافذة</button>
-                    `;
-                    
-                    document.getElementById('try-close').addEventListener('click', function() {
-                        window.close();
-                    });
-                }
-            } catch (e) {
-                console.error('فشل إغلاق النافذة:', e);
-                document.getElementById('result').innerHTML = `
-                    <p class="warning">لم نتمكن من إغلاق النافذة تلقائيًا</p>
-                    <p>يرجى إغلاق هذه النافذة يدويًا والعودة إلى التطبيق.</p>
-                `;
-            }
-        }
+        });
     </script>
 </body>
 </html>
