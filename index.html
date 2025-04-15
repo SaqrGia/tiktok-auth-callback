@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="es" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>استقبال مصادقة TikTok</title>
+    <title>Autenticación TikTok</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -72,7 +72,7 @@
             cursor: pointer;
             font-size: 14px;
             margin: 8px;
-            display: none;
+            display: inline-block;
         }
         .btn:hover {
             background-color: #333333;
@@ -88,31 +88,31 @@
     </style>
 </head>
 <body>
-    <h1>مصادقة تيك توك</h1>
+    <h1>Autenticación TikTok</h1>
     
     <div class="card">
         <div id="result">
-            <p>جاري معالجة بيانات المصادقة...</p>
+            <p>Procesando datos de autenticación...</p>
             <div class="spinner"></div>
-            <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">10</span> ثوانٍ...</p>
+            <p id="countdown">Esta ventana se cerrará automáticamente en <span id="seconds">10</span> segundos...</p>
         </div>
         
         <div id="code-container" style="display: none;">
-            <h3>رمز المصادقة:</h3>
+            <h3>Código de autorización:</h3>
             <div class="code-box" id="code-value"></div>
-            <button id="copy-code" class="btn">نسخ الرمز</button>
-            <button id="return-to-app" class="btn">العودة إلى التطبيق</button>
+            <button id="copy-code" class="btn">Copiar código</button>
+            <button id="return-to-app" class="btn">Volver a la aplicación</button>
         </div>
         
         <div id="debug-info"></div>
     </div>
     
     <script>
-        // تكوين العرض التشخيصي (للمطورين)
+        // Configuración de depuración (para desarrolladores)
         const DEBUG_MODE = false;
         
         document.addEventListener('DOMContentLoaded', function() {
-            // استخراج معلمات URL
+            // Extraer parámetros de URL
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
@@ -120,7 +120,7 @@
             const errorType = urlParams.get('error_type');
             const errorDescription = urlParams.get('error_description');
             
-            // للاستخدام التشخيصي
+            // Para uso de depuración
             if (DEBUG_MODE) {
                 document.getElementById('debug-info').style.display = 'block';
                 document.getElementById('debug-info').innerHTML = 
@@ -133,7 +133,7 @@
                     `<strong>User Agent:</strong> ${navigator.userAgent}`;
             }
             
-            // معالجة رمز المصادقة أو الخطأ
+            // Procesar código de autorización o error
             if (code) {
                 handleAuthCode(code, state);
             } else if (error) {
@@ -143,133 +143,133 @@
             }
         });
         
-        // معالجة رمز المصادقة
+        // Procesar código de autorización
         function handleAuthCode(code, state) {
-            // تنظيف الرمز - إذا كان يحتوي على '*' نأخذ الجزء قبله فقط
+            // Limpiar código - si contiene '*' tomar solo la parte anterior
             let cleanCode = code;
             if (code.includes('*')) {
                 cleanCode = code.split('*')[0];
-                console.log('تم تنظيف الرمز لإزالة المحتوى بعد "*"');
+                console.log('Código limpiado para eliminar contenido después de "*"');
             }
             
-            // حفظ الرمز في التخزين المحلي كاحتياط
+            // Guardar código en almacenamiento local como respaldo
             try {
                 localStorage.setItem('tiktok_auth_code', cleanCode);
                 localStorage.setItem('tiktok_auth_time', Date.now().toString());
-                console.log('تم تخزين الرمز في localStorage');
+                console.log('Código guardado en localStorage');
             } catch (e) {
-                console.error('فشل تخزين الرمز:', e);
+                console.error('Error al guardar código:', e);
             }
             
-            // تحديث واجهة المستخدم
+            // Actualizar interfaz
             document.getElementById('result').innerHTML = `
                 <div class="icon">✅</div>
-                <p class="success">تم استلام رمز المصادقة بنجاح!</p>
-                <p>تم إكمال عملية المصادقة. يمكنك العودة إلى التطبيق الآن.</p>
-                <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">10</span> ثوانٍ...</p>
+                <p class="success">¡Código de autorización recibido!</p>
+                <p>Autenticación completada. Puede volver a la aplicación.</p>
+                <p id="countdown">Esta ventana se cerrará automáticamente en <span id="seconds">10</span> segundos...</p>
             `;
             
-            // إظهار الرمز في وضع التصحيح
+            // Mostrar código en modo depuración
             if (DEBUG_MODE) {
                 document.getElementById('code-container').style.display = 'block';
                 document.getElementById('code-value').textContent = cleanCode;
                 document.getElementById('copy-code').style.display = 'inline-block';
                 document.getElementById('return-to-app').style.display = 'inline-block';
                 
-                // إضافة وظيفة نسخ الرمز
+                // Agregar función de copia
                 document.getElementById('copy-code').addEventListener('click', function() {
                     navigator.clipboard.writeText(cleanCode).then(function() {
-                        alert('تم نسخ الرمز بنجاح!');
+                        alert('¡Código copiado!');
                     });
                 });
             }
             
-            // محاولة الاتصال بالتطبيق
+            // Intentar conectar con la aplicación
             tryConnectToApp(cleanCode, state);
             
-            // بدء العد التنازلي لإغلاق الصفحة
+            // Iniciar cuenta regresiva para cerrar
             startCountdown(10);
         }
         
-        // معالجة خطأ المصادقة
+        // Procesar error de autenticación
         function handleAuthError(error, errorType, errorDescription) {
             document.getElementById('result').innerHTML = `
                 <div class="icon">❌</div>
-                <p class="error">فشلت عملية المصادقة</p>
-                <p>سبب الخطأ: ${errorDescription || error || 'غير معروف'}</p>
-                <p>يرجى المحاولة مرة أخرى أو استخدام طريقة مصادقة مختلفة.</p>
-                <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">10</span> ثوانٍ...</p>
+                <p class="error">Autenticación fallida</p>
+                <p>Motivo: ${errorDescription || error || 'Desconocido'}</p>
+                <p>Por favor intente nuevamente o use otro método de autenticación.</p>
+                <p id="countdown">Esta ventana se cerrará automáticamente en <span id="seconds">10</span> segundos...</p>
             `;
             
-            // حفظ معلومات الخطأ
+            // Guardar información de error
             try {
                 localStorage.setItem('tiktok_auth_error', error || '');
                 localStorage.setItem('tiktok_auth_error_description', errorDescription || '');
                 localStorage.setItem('tiktok_auth_error_time', Date.now().toString());
             } catch (e) {
-                console.error('فشل تخزين معلومات الخطأ:', e);
+                console.error('Error al guardar información de error:', e);
             }
             
-            // محاولة إرسال الخطأ إلى التطبيق
+            // Intentar enviar error a la aplicación
             tryConnectToAppWithError(error, errorType, errorDescription);
             
-            // بدء العد التنازلي لإغلاق الصفحة
+            // Iniciar cuenta regresiva para cerrar
             startCountdown(10);
         }
         
-        // معالجة الحالة بدون معلمات
+        // Manejar caso sin parámetros
         function handleNoParams() {
             document.getElementById('result').innerHTML = `
                 <div class="icon">ℹ️</div>
-                <p class="warning">لم يتم العثور على بيانات المصادقة</p>
-                <p>قد تكون هذه الصفحة قد فُتحت بشكل مباشر دون عملية مصادقة.</p>
-                <p>يرجى العودة إلى التطبيق وإعادة المحاولة.</p>
-                <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">5</span> ثوانٍ...</p>
+                <p class="warning">No se encontraron datos de autenticación</p>
+                <p>Es posible que esta página se haya abierto directamente sin un proceso de autenticación.</p>
+                <p>Por favor vuelva a la aplicación e intente nuevamente.</p>
+                <p id="countdown">Esta ventana se cerrará automáticamente en <span id="seconds">5</span> segundos...</p>
             `;
             
-            // بدء العد التنازلي لإغلاق الصفحة
+            // Iniciar cuenta regresiva para cerrar
             startCountdown(5);
         }
         
-        // محاولة الاتصال بالتطبيق مع رمز المصادقة
+        // Intentar conectar con la aplicación con código de autorización
         function tryConnectToApp(code, state) {
             try {
-                // 1. استخدام مخطط URI للتطبيق
+                // 1. Usar esquema URI de la aplicación
                 const appScheme = `facebookpostmanager://auth/tiktok?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
                 
-                // بداية التأجيل لإعطاء مستعرض الويب وقتًا للتسجيل
+                // Breve retraso para dar tiempo al navegador
                 setTimeout(() => {
-                    // إضافة عنصر iframe غير مرئي لفتح المخطط
+                    // Agregar iframe invisible para abrir esquema
                     const iframe = document.createElement('iframe');
                     iframe.style.display = 'none';
                     iframe.src = appScheme;
                     document.body.appendChild(iframe);
                     
-                    // إزالة iframe بعد فترة وجيزة
+                    // Eliminar iframe después de un momento
                     setTimeout(() => {
                         document.body.removeChild(iframe);
                     }, 500);
                     
-                    // أيضًا محاولة استخدام window.location
+                    // También intentar con window.location
                     setTimeout(() => {
                         window.location.href = appScheme;
                     }, 1000);
                 }, 300);
                 
-                console.log('تمت محاولة الاتصال بالتطبيق باستخدام المخطط:', appScheme);
+                console.log('Intento de conexión con la app usando esquema:', appScheme);
                 
-                // إضافة زر للعودة اليدوية إلى التطبيق
+                // Agregar botón para volver manualmente a la aplicación
                 document.getElementById('return-to-app').style.display = 'inline-block';
                 document.getElementById('return-to-app').addEventListener('click', function() {
                     window.location.href = appScheme;
                 });
                 
             } catch (e) {
-                console.error('فشل الاتصال بالتطبيق:', e);
+                console.error('Error al conectar con la aplicación:', e);
             }
         }
         
-        // محاولة الاتصال بالتطبيق مع معلومات الخطأ
+        // Intentar conectar con la aplicación con información de error
         function tryConnectToAppWithError(error, errorType, errorDescription) {
             try {
                 const appScheme = `facebookpostmanager://auth/tiktok/error?error=${encodeURIComponent(error || '')}&error_type=${encodeURIComponent(errorType || '')}&error_description=${encodeURIComponent(errorDescription || '')}`;
@@ -289,13 +289,13 @@
                     }, 1000);
                 }, 300);
                 
-                console.log('تمت محاولة الاتصال بالتطبيق لنقل الخطأ');
+                console.log('Intento de conexión con la app para enviar error');
             } catch (e) {
-                console.error('فشل الاتصال بالتطبيق لنقل الخطأ:', e);
+                console.error('Error al conectar con la aplicación para enviar error:', e);
             }
         }
         
-        // دالة العد التنازلي وإغلاق النافذة
+        // Función de cuenta regresiva y cierre
         function startCountdown(seconds) {
             const countdownElement = document.getElementById('seconds');
             if (!countdownElement) return;
@@ -314,18 +314,18 @@
             }, 1000);
         }
         
-        // محاولة إغلاق النافذة
+        // Intentar cerrar ventana
         function closeWindow() {
             try {
-                // للنوافذ التي تم فتحها بواسطة JavaScript
+                // Para ventanas abiertas por JavaScript
                 window.close();
                 
-                // للنوافذ التي كانت مفتوحة بالفعل
+                // Para ventanas ya abiertas
                 if (!window.closed) {
                     document.getElementById('result').innerHTML = `
-                        <p class="warning">لم نتمكن من إغلاق النافذة تلقائيًا</p>
-                        <p>يمكنك إغلاق هذه النافذة والعودة إلى التطبيق.</p>
-                        <button id="try-close" class="btn" style="display: inline-block;">حاول مرة أخرى</button>
+                        <p class="warning">No pudimos cerrar la ventana automáticamente</p>
+                        <p>Puede cerrar esta ventana y volver a la aplicación.</p>
+                        <button id="try-close" class="btn">Intentar nuevamente</button>
                     `;
                     
                     document.getElementById('try-close').addEventListener('click', function() {
@@ -333,10 +333,10 @@
                     });
                 }
             } catch (e) {
-                console.error('فشل إغلاق النافذة:', e);
+                console.error('Error al cerrar ventana:', e);
                 document.getElementById('result').innerHTML = `
-                    <p class="warning">لم نتمكن من إغلاق النافذة تلقائيًا</p>
-                    <p>يرجى إغلاق هذه النافذة يدويًا والعودة إلى التطبيق.</p>
+                    <p class="warning">No pudimos cerrar la ventana automáticamente</p>
+                    <p>Por favor cierre esta ventana manualmente y vuelva a la aplicación.</p>
                 `;
             }
         }
