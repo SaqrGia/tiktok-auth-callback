@@ -11,20 +11,39 @@
             margin: 0 auto;
             padding: 20px;
             text-align: center;
+            background-color: #f8f8f8;
         }
         .card {
             border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-            background-color: #f9f9f9;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 24px;
+            background-color: #ffffff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .code-box {
+            background-color: #f5f5f5;
+            padding: 12px;
+            border-radius: 6px;
+            word-break: break-all;
+            margin: 16px 0;
+            direction: ltr;
+            text-align: left;
+            font-family: monospace;
+            font-size: 14px;
+            border: 1px solid #e0e0e0;
+            display: none;
         }
         .success {
-            color: green;
+            color: #28a745;
             font-weight: bold;
         }
         .error {
-            color: red;
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ffc107;
             font-weight: bold;
         }
         .spinner {
@@ -32,28 +51,66 @@
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            border-left-color: #0095f6;
+            border-left-color: #000000;
             animation: spin 1s linear infinite;
-            margin: 15px auto;
+            margin: 20px auto;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .icon {
+            font-size: 48px;
+            margin: 10px 0;
+        }
+        .btn {
+            padding: 10px 16px;
+            background-color: #000000;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 8px;
+            display: none;
+        }
+        .btn:hover {
+            background-color: #333333;
+        }
+        #debug-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 20px;
+            text-align: left;
+            direction: ltr;
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <h1>صفحة استقبال مصادقة TikTok</h1>
+    <h1>مصادقة تيك توك</h1>
     
     <div class="card">
         <div id="result">
-            <p>جاري معالجة البيانات...</p>
+            <p>جاري معالجة بيانات المصادقة...</p>
             <div class="spinner"></div>
-            <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">5</span> ثواني...</p>
+            <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">10</span> ثوانٍ...</p>
         </div>
+        
+        <div id="code-container" style="display: none;">
+            <h3>رمز المصادقة:</h3>
+            <div class="code-box" id="code-value"></div>
+            <button id="copy-code" class="btn">نسخ الرمز</button>
+            <button id="return-to-app" class="btn">العودة إلى التطبيق</button>
+        </div>
+        
+        <div id="debug-info"></div>
     </div>
     
     <script>
+        // تكوين العرض التشخيصي (للمطورين)
+        const DEBUG_MODE = false;
+        
         document.addEventListener('DOMContentLoaded', function() {
             // استخراج معلمات URL
             const urlParams = new URLSearchParams(window.location.search);
@@ -61,63 +118,182 @@
             const state = urlParams.get('state');
             const error = urlParams.get('error');
             const errorType = urlParams.get('error_type');
-            const errorString = urlParams.get('error_string');
+            const errorDescription = urlParams.get('error_description');
             
-            // محاولة الاتصال بالتطبيق باستخدام عدة تقنيات
-            let appConnected = false;
-            
-            if (code) {
-                // تم استلام رمز بنجاح
-                document.getElementById('result').innerHTML = '<p class="success">تم استلام رمز المصادقة بنجاح!</p><div class="spinner"></div><p>جاري إعادة التوجيه إلى التطبيق...</p>';
-                
-                // 1. محاولة استخدام Universal Links / App Links
-                try {
-                    // يمكن تغيير هذا ليتناسب مع مخطط URL الخاص بالتطبيق
-                    const appScheme = `facebookpostmanager://auth/tiktok?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
-                    window.location.href = appScheme;
-                    appConnected = true;
-                } catch (e) {
-                    console.error('فشل استخدام مخطط التطبيق:', e);
-                }
-                
-                // 2. تخزين الرمز في sessionStorage لاسترجاعه لاحقًا
-                try {
-                    sessionStorage.setItem('tiktok_auth_code', code);
-                    sessionStorage.setItem('tiktok_auth_time', Date.now().toString());
-                    console.log('تم تخزين الرمز في sessionStorage');
-                } catch (e) {
-                    console.error('فشل تخزين الرمز:', e);
-                }
-                
-                // إغلاق النافذة تلقائيًا بعد فترة قصيرة
-                startCountdown(5);
-            } else if (error) {
-                // حدث خطأ
-                document.getElementById('result').innerHTML = `
-                    <p class="error">فشلت عملية المصادقة</p>
-                    <p>سبب الخطأ: ${error || 'غير معروف'}</p>
-                    <p>سيتم إغلاق هذه الصفحة تلقائياً...</p>
-                `;
-                
-                // محاولة إعادة التوجيه للتطبيق مع رمز الخطأ
-                try {
-                    const appScheme = `facebookpostmanager://auth/tiktok?error=${encodeURIComponent(error)}&error_type=${encodeURIComponent(errorType || '')}&error_string=${encodeURIComponent(errorString || '')}`;
-                    window.location.href = appScheme;
-                    appConnected = true;
-                } catch (e) {
-                    console.error('فشل استخدام مخطط التطبيق للخطأ:', e);
-                }
-                
-                // إغلاق النافذة تلقائيًا بعد فترة قصيرة
-                startCountdown(5);
-            } else {
-                document.getElementById('result').innerHTML = '<p>لم يتم العثور على بيانات المصادقة في العنوان.</p>';
-                startCountdown(3);
+            // للاستخدام التشخيصي
+            if (DEBUG_MODE) {
+                document.getElementById('debug-info').style.display = 'block';
+                document.getElementById('debug-info').innerHTML = 
+                    `<strong>URL Params:</strong><br>` +
+                    `code: ${code || 'N/A'}<br>` +
+                    `state: ${state || 'N/A'}<br>` +
+                    `error: ${error || 'N/A'}<br>` +
+                    `error_type: ${errorType || 'N/A'}<br>` +
+                    `error_description: ${errorDescription || 'N/A'}<br>` +
+                    `<strong>User Agent:</strong> ${navigator.userAgent}`;
             }
             
-            // إذا كان التطبيق يستخدم طريقة polling للتحقق من حالة QR
-            // فلا داعي للقلق، سيتم التعامل مع الرمز من خلال API
+            // معالجة رمز المصادقة أو الخطأ
+            if (code) {
+                handleAuthCode(code, state);
+            } else if (error) {
+                handleAuthError(error, errorType, errorDescription);
+            } else {
+                handleNoParams();
+            }
         });
+        
+        // معالجة رمز المصادقة
+        function handleAuthCode(code, state) {
+            // تنظيف الرمز - إذا كان يحتوي على '*' نأخذ الجزء قبله فقط
+            let cleanCode = code;
+            if (code.includes('*')) {
+                cleanCode = code.split('*')[0];
+                console.log('تم تنظيف الرمز لإزالة المحتوى بعد "*"');
+            }
+            
+            // حفظ الرمز في التخزين المحلي كاحتياط
+            try {
+                localStorage.setItem('tiktok_auth_code', cleanCode);
+                localStorage.setItem('tiktok_auth_time', Date.now().toString());
+                console.log('تم تخزين الرمز في localStorage');
+            } catch (e) {
+                console.error('فشل تخزين الرمز:', e);
+            }
+            
+            // تحديث واجهة المستخدم
+            document.getElementById('result').innerHTML = `
+                <div class="icon">✅</div>
+                <p class="success">تم استلام رمز المصادقة بنجاح!</p>
+                <p>تم إكمال عملية المصادقة. يمكنك العودة إلى التطبيق الآن.</p>
+                <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">10</span> ثوانٍ...</p>
+            `;
+            
+            // إظهار الرمز في وضع التصحيح
+            if (DEBUG_MODE) {
+                document.getElementById('code-container').style.display = 'block';
+                document.getElementById('code-value').textContent = cleanCode;
+                document.getElementById('copy-code').style.display = 'inline-block';
+                document.getElementById('return-to-app').style.display = 'inline-block';
+                
+                // إضافة وظيفة نسخ الرمز
+                document.getElementById('copy-code').addEventListener('click', function() {
+                    navigator.clipboard.writeText(cleanCode).then(function() {
+                        alert('تم نسخ الرمز بنجاح!');
+                    });
+                });
+            }
+            
+            // محاولة الاتصال بالتطبيق
+            tryConnectToApp(cleanCode, state);
+            
+            // بدء العد التنازلي لإغلاق الصفحة
+            startCountdown(10);
+        }
+        
+        // معالجة خطأ المصادقة
+        function handleAuthError(error, errorType, errorDescription) {
+            document.getElementById('result').innerHTML = `
+                <div class="icon">❌</div>
+                <p class="error">فشلت عملية المصادقة</p>
+                <p>سبب الخطأ: ${errorDescription || error || 'غير معروف'}</p>
+                <p>يرجى المحاولة مرة أخرى أو استخدام طريقة مصادقة مختلفة.</p>
+                <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">10</span> ثوانٍ...</p>
+            `;
+            
+            // حفظ معلومات الخطأ
+            try {
+                localStorage.setItem('tiktok_auth_error', error || '');
+                localStorage.setItem('tiktok_auth_error_description', errorDescription || '');
+                localStorage.setItem('tiktok_auth_error_time', Date.now().toString());
+            } catch (e) {
+                console.error('فشل تخزين معلومات الخطأ:', e);
+            }
+            
+            // محاولة إرسال الخطأ إلى التطبيق
+            tryConnectToAppWithError(error, errorType, errorDescription);
+            
+            // بدء العد التنازلي لإغلاق الصفحة
+            startCountdown(10);
+        }
+        
+        // معالجة الحالة بدون معلمات
+        function handleNoParams() {
+            document.getElementById('result').innerHTML = `
+                <div class="icon">ℹ️</div>
+                <p class="warning">لم يتم العثور على بيانات المصادقة</p>
+                <p>قد تكون هذه الصفحة قد فُتحت بشكل مباشر دون عملية مصادقة.</p>
+                <p>يرجى العودة إلى التطبيق وإعادة المحاولة.</p>
+                <p id="countdown">ستغلق هذه الصفحة تلقائياً خلال <span id="seconds">5</span> ثوانٍ...</p>
+            `;
+            
+            // بدء العد التنازلي لإغلاق الصفحة
+            startCountdown(5);
+        }
+        
+        // محاولة الاتصال بالتطبيق مع رمز المصادقة
+        function tryConnectToApp(code, state) {
+            try {
+                // 1. استخدام مخطط URI للتطبيق
+                const appScheme = `facebookpostmanager://auth/tiktok?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
+                
+                // بداية التأجيل لإعطاء مستعرض الويب وقتًا للتسجيل
+                setTimeout(() => {
+                    // إضافة عنصر iframe غير مرئي لفتح المخطط
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    iframe.src = appScheme;
+                    document.body.appendChild(iframe);
+                    
+                    // إزالة iframe بعد فترة وجيزة
+                    setTimeout(() => {
+                        document.body.removeChild(iframe);
+                    }, 500);
+                    
+                    // أيضًا محاولة استخدام window.location
+                    setTimeout(() => {
+                        window.location.href = appScheme;
+                    }, 1000);
+                }, 300);
+                
+                console.log('تمت محاولة الاتصال بالتطبيق باستخدام المخطط:', appScheme);
+                
+                // إضافة زر للعودة اليدوية إلى التطبيق
+                document.getElementById('return-to-app').style.display = 'inline-block';
+                document.getElementById('return-to-app').addEventListener('click', function() {
+                    window.location.href = appScheme;
+                });
+                
+            } catch (e) {
+                console.error('فشل الاتصال بالتطبيق:', e);
+            }
+        }
+        
+        // محاولة الاتصال بالتطبيق مع معلومات الخطأ
+        function tryConnectToAppWithError(error, errorType, errorDescription) {
+            try {
+                const appScheme = `facebookpostmanager://auth/tiktok/error?error=${encodeURIComponent(error || '')}&error_type=${encodeURIComponent(errorType || '')}&error_description=${encodeURIComponent(errorDescription || '')}`;
+                
+                setTimeout(() => {
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    iframe.src = appScheme;
+                    document.body.appendChild(iframe);
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(iframe);
+                    }, 500);
+                    
+                    setTimeout(() => {
+                        window.location.href = appScheme;
+                    }, 1000);
+                }, 300);
+                
+                console.log('تمت محاولة الاتصال بالتطبيق لنقل الخطأ');
+            } catch (e) {
+                console.error('فشل الاتصال بالتطبيق لنقل الخطأ:', e);
+            }
+        }
         
         // دالة العد التنازلي وإغلاق النافذة
         function startCountdown(seconds) {
@@ -141,11 +317,27 @@
         // محاولة إغلاق النافذة
         function closeWindow() {
             try {
-                window.close(); // محاولة إغلاق النافذة
+                // للنوافذ التي تم فتحها بواسطة JavaScript
+                window.close();
+                
+                // للنوافذ التي كانت مفتوحة بالفعل
+                if (!window.closed) {
+                    document.getElementById('result').innerHTML = `
+                        <p class="warning">لم نتمكن من إغلاق النافذة تلقائيًا</p>
+                        <p>يمكنك إغلاق هذه النافذة والعودة إلى التطبيق.</p>
+                        <button id="try-close" class="btn" style="display: inline-block;">حاول مرة أخرى</button>
+                    `;
+                    
+                    document.getElementById('try-close').addEventListener('click', function() {
+                        window.close();
+                    });
+                }
             } catch (e) {
-                console.error('لم نتمكن من إغلاق النافذة:', e);
-                // إذا لم نتمكن من إغلاق النافذة، نعرض رسالة للمستخدم
-                document.getElementById('result').innerHTML = '<p>يرجى العودة إلى التطبيق أو إغلاق هذه النافذة يدويًا.</p>';
+                console.error('فشل إغلاق النافذة:', e);
+                document.getElementById('result').innerHTML = `
+                    <p class="warning">لم نتمكن من إغلاق النافذة تلقائيًا</p>
+                    <p>يرجى إغلاق هذه النافذة يدويًا والعودة إلى التطبيق.</p>
+                `;
             }
         }
     </script>
