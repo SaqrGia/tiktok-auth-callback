@@ -128,10 +128,24 @@
 
                 // Attempt to communicate with the Flutter app
                 try {
+                    // Make sure the code is URL encoded for passing to the app
+                    // The app will decode it
+                    const encodedCode = encodeURIComponent(code);
+                    const encodedState = encodeURIComponent(state || '');
+
+                    debugInfo.innerHTML += `
+                        <br><strong>Authorization Code:</strong><br>
+                        Raw code: ${code}<br>
+                        URL encoded code: ${encodedCode}<br>
+                        <br>
+                        <strong>Note:</strong> TikTok API requires the code to be URL decoded when exchanging for a token.<br>
+                    `;
+
                     // For Android
                     if (window.AndroidInterface) {
                         debugInfo.innerHTML += '<br><strong>Communication Method:</strong><br>Using Android Interface to communicate with app<br>';
                         console.log('Calling AndroidInterface.receiveAuthCode with code and state');
+                        // Pass the raw code - the Android interface will handle URL decoding
                         window.AndroidInterface.receiveAuthCode(code, state || '');
                         debugInfo.innerHTML += '<span style="color: green;">✓ Called AndroidInterface.receiveAuthCode</span><br>';
                     }
@@ -148,7 +162,7 @@
                     // If no native interface is available, try to redirect with a custom scheme
                     else {
                         // Try to redirect back to the app with a custom scheme
-                        const redirectUrl = `tiktokposter://auth?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
+                        const redirectUrl = `tiktokposter://auth?code=${encodedCode}&state=${encodedState}`;
                         debugInfo.innerHTML += `
                             <br><strong>Communication Method:</strong><br>
                             No native interface found. Using custom URI scheme.<br>
