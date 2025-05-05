@@ -43,39 +43,66 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Display the full URL for debugging
+            console.log('Full callback URL:', window.location.href);
+
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
             const error = urlParams.get('error');
             const errorDescription = urlParams.get('error_description');
-            
+
+            // Log all URL parameters for debugging
+            console.log('URL Parameters:', {
+                code: code,
+                state: state,
+                error: error,
+                errorDescription: errorDescription,
+                allParams: Object.fromEntries(urlParams.entries())
+            });
+
             const messageElement = document.getElementById('message');
-            
+
+            // Create a debug info element
+            const debugInfo = document.createElement('div');
+            debugInfo.style.marginTop = '20px';
+            debugInfo.style.padding = '10px';
+            debugInfo.style.backgroundColor = '#f0f0f0';
+            debugInfo.style.borderRadius = '5px';
+            debugInfo.style.fontSize = '14px';
+            debugInfo.style.textAlign = 'left';
+            document.querySelector('.container').appendChild(debugInfo);
+
             if (error) {
                 messageElement.classList.add('error');
                 messageElement.textContent = `Error: ${error}. ${errorDescription || ''}`;
+                debugInfo.innerHTML = `<strong>Error Details:</strong><br>Error: ${error}<br>Description: ${errorDescription || 'None provided'}`;
             } else if (code && state) {
                 messageElement.classList.add('success');
                 messageElement.textContent = 'Authentication successful! You can now return to the app.';
-                
+                debugInfo.innerHTML = `<strong>Success Details:</strong><br>Code received: ${code.substring(0, 5)}...<br>State: ${state}`;
+
                 // Attempt to communicate with the Flutter app
                 try {
                     // For Android
                     if (window.AndroidInterface) {
+                        debugInfo.innerHTML += '<br><br>Using Android Interface to communicate with app';
                         window.AndroidInterface.receiveAuthCode(code, state);
-                    } 
+                    }
                     // For iOS
                     else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.receiveAuthCode) {
+                        debugInfo.innerHTML += '<br><br>Using iOS WebKit Interface to communicate with app';
                         window.webkit.messageHandlers.receiveAuthCode.postMessage({
                             code: code,
                             state: state
                         });
-                    } 
+                    }
                     // If no native interface is available, try to redirect with a custom scheme
                     else {
                         // Try to redirect back to the app with a custom scheme
                         const redirectUrl = `tiktokposter://auth?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
-                        
+                        debugInfo.innerHTML += `<br><br>No native interface found. Attempting to redirect to: ${redirectUrl}`;
+
                         // Add a slight delay before redirecting
                         setTimeout(function() {
                             window.location.href = redirectUrl;
@@ -83,10 +110,23 @@
                     }
                 } catch (e) {
                     console.error('Error communicating with app:', e);
+                    debugInfo.innerHTML += `<br><br>Error communicating with app: ${e.message}`;
                 }
             } else {
                 messageElement.classList.add('error');
                 messageElement.textContent = 'Invalid response from TikTok. Missing authorization code or state.';
+
+                // Show all received parameters for debugging
+                let paramsText = '<strong>Received Parameters:</strong><br>';
+                for (const [key, value] of urlParams.entries()) {
+                    paramsText += `${key}: ${value}<br>`;
+                }
+
+                if (urlParams.entries().next().done) {
+                    paramsText += 'No parameters found in URL';
+                }
+
+                debugInfo.innerHTML = paramsText;
             }
         });
     </script>
