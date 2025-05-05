@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TikTok QR Code Demo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 90%;
+            width: 500px;
+        }
+        .qr-container {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .qr-image {
+            max-width: 100%;
+            height: auto;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #fe2c55;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #e62a4d;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #e6f7e6;
+            color: #2e7d32;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(254, 44, 85, 0.3);
+            border-radius: 50%;
+            border-top-color: #fe2c55;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TikTok QR Code Demo</h1>
+        <p>This page demonstrates how to display a TikTok QR code for authentication.</p>
+        
+        <div id="statusMessage" class="status">
+            <span>Ready to generate QR code</span>
+        </div>
+        
+        <button id="generateBtn" onclick="generateQRCode()">Generate QR Code</button>
+        
+        <div id="qrContainer" class="qr-container" style="display: none;">
+            <h2>Scan this QR code with TikTok app</h2>
+            <div id="qrImage" class="qr-image"></div>
+            <p>Status: <span id="qrStatus">Waiting for scan...</span></p>
+            <button id="checkStatusBtn" onclick="checkQRStatus()">Check Status</button>
+        </div>
+        
+        <div id="resultContainer" style="display: none;">
+            <h2>Authentication Result</h2>
+            <div id="authResult"></div>
+            <button onclick="resetDemo()">Start Over</button>
+        </div>
+    </div>
+    
+    <script>
+        // Variables to store QR authentication data
+        let qrToken = null;
+        let clientTicket = null;
+        let checkInterval = null;
+        
+        // For demo purposes, we'll use a mock QR code
+        function generateQRCode() {
+            document.getElementById('statusMessage').innerHTML = '<div class="loading"></div><span>Generating QR code...</span>';
+            document.getElementById('generateBtn').disabled = true;
+            
+            // In a real app, you would call your backend API to get a QR code
+            // For demo purposes, we'll use a mock QR code
+            setTimeout(() => {
+                // Mock QR code data
+                const qrData = {
+                    qr_url: 'https://www.tiktok.com/login/qr-code?_r=1&lang=en',
+                    token: 'mock_token_' + Date.now(),
+                    client_ticket: 'mock_client_ticket_' + Date.now()
+                };
+                
+                // Display the QR code
+                displayQRCode(qrData);
+            }, 1500);
+        }
+        
+        function displayQRCode(qrData) {
+            // Store the QR code data
+            qrToken = qrData.token;
+            clientTicket = qrData.client_ticket;
+            
+            // For demo purposes, we'll use a placeholder image
+            const qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(qrData.qr_url);
+            
+            // Display the QR code
+            document.getElementById('qrImage').innerHTML = `<img src="${qrImageUrl}" alt="TikTok QR Code">`;
+            document.getElementById('qrContainer').style.display = 'block';
+            document.getElementById('statusMessage').innerHTML = '<div class="success">QR code generated successfully!</div>';
+            document.getElementById('generateBtn').style.display = 'none';
+            
+            // Start polling for QR code status
+            startQRStatusCheck();
+        }
+        
+        function startQRStatusCheck() {
+            // Check status immediately
+            checkQRStatus();
+            
+            // Then check every 3 seconds
+            checkInterval = setInterval(checkQRStatus, 3000);
+            
+            // Stop checking after 1 minute (60 seconds)
+            setTimeout(() => {
+                if (checkInterval) {
+                    clearInterval(checkInterval);
+                    document.getElementById('qrStatus').textContent = 'Expired';
+                    document.getElementById('statusMessage').innerHTML = '<div class="error">QR code expired. Please generate a new one.</div>';
+                    document.getElementById('checkStatusBtn').style.display = 'inline-block';
+                    document.getElementById('generateBtn').style.display = 'inline-block';
+                    document.getElementById('generateBtn').disabled = false;
+                }
+            }, 60000);
+        }
+        
+        function checkQRStatus() {
+            document.getElementById('qrStatus').textContent = 'Checking...';
+            document.getElementById('checkStatusBtn').style.display = 'none';
+            
+            // In a real app, you would call your backend API to check the QR code status
+            // For demo purposes, we'll simulate different statuses
+            setTimeout(() => {
+                const statuses = ['waiting', 'scanned', 'confirmed'];
+                const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+                
+                document.getElementById('qrStatus').textContent = randomStatus;
+                document.getElementById('checkStatusBtn').style.display = 'inline-block';
+                
+                if (randomStatus === 'confirmed') {
+                    // Simulate successful authentication
+                    clearInterval(checkInterval);
+                    showAuthSuccess();
+                }
+            }, 1000);
+        }
+        
+        function showAuthSuccess() {
+            // Generate a mock authorization code
+            const authCode = 'mock_auth_code_' + Date.now();
+            
+            document.getElementById('qrContainer').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'block';
+            document.getElementById('statusMessage').innerHTML = '<div class="success">Authentication successful!</div>';
+            document.getElementById('authResult').innerHTML = `
+                <p>Authorization code: <strong>${authCode}</strong></p>
+                <p>In a real app, this code would be sent to your backend to exchange for an access token.</p>
+            `;
+        }
+        
+        function resetDemo() {
+            // Reset the demo
+            if (checkInterval) {
+                clearInterval(checkInterval);
+            }
+            
+            qrToken = null;
+            clientTicket = null;
+            
+            document.getElementById('qrContainer').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'none';
+            document.getElementById('generateBtn').style.display = 'inline-block';
+            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('statusMessage').innerHTML = '<span>Ready to generate QR code</span>';
+        }
+    </script>
+</body>
+</html>
