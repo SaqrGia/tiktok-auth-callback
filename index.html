@@ -46,19 +46,29 @@
             // Display the full URL for debugging
             console.log('Full callback URL:', window.location.href);
 
+            // Check both URL search params and hash fragment
             const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            const state = urlParams.get('state');
-            const error = urlParams.get('error');
-            const errorDescription = urlParams.get('error_description');
+            const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+
+            // Try to get code and state from URL params or hash fragment
+            let code = urlParams.get('code') || hashParams.get('code');
+            let state = urlParams.get('state') || hashParams.get('state');
+            let error = urlParams.get('error') || hashParams.get('error');
+            let errorDescription = urlParams.get('error_description') || hashParams.get('error_description');
+
+            // Check for authorization_code in case TikTok uses a different parameter name
+            if (!code) {
+                code = urlParams.get('authorization_code') || hashParams.get('authorization_code');
+            }
 
             // Log all URL parameters for debugging
-            console.log('URL Parameters:', {
+            console.log('URL Search Parameters:', Object.fromEntries(urlParams.entries()));
+            console.log('URL Hash Parameters:', Object.fromEntries(hashParams.entries()));
+            console.log('Extracted Parameters:', {
                 code: code,
                 state: state,
                 error: error,
-                errorDescription: errorDescription,
-                allParams: Object.fromEntries(urlParams.entries())
+                errorDescription: errorDescription
             });
 
             const messageElement = document.getElementById('message');
@@ -73,35 +83,79 @@
             debugInfo.style.textAlign = 'left';
             document.querySelector('.container').appendChild(debugInfo);
 
+            // Show full URL and raw parameters for debugging
+            debugInfo.innerHTML = `
+                <strong>Full URL:</strong><br>
+                ${window.location.href}<br><br>
+                <strong>Raw URL Search:</strong><br>
+                ${window.location.search || '(empty)'}<br><br>
+                <strong>Raw URL Hash:</strong><br>
+                ${window.location.hash || '(empty)'}<br><br>
+            `;
+
+            // Add TikTok API configuration info for debugging
+            debugInfo.innerHTML += `
+                <strong>TikTok API Configuration:</strong><br>
+                Redirect URI: https://saqrgia.github.io/tiktok-auth-callback<br>
+                <br>
+            `;
+
             if (error) {
                 messageElement.classList.add('error');
                 messageElement.textContent = `Error: ${error}. ${errorDescription || ''}`;
-                debugInfo.innerHTML = `<strong>Error Details:</strong><br>Error: ${error}<br>Description: ${errorDescription || 'None provided'}`;
-            } else if (code && state) {
+                debugInfo.innerHTML += `
+                    <strong>Error Details:</strong><br>
+                    <span style="color: red; font-weight: bold;">Error: ${error}</span><br>
+                    Description: ${errorDescription || 'None provided'}<br>
+                    <br>
+                    <strong>Possible Solutions:</strong><br>
+                    1. Check that your TikTok Developer app settings are correct<br>
+                    2. Verify that the Android package name is set correctly<br>
+                    3. Make sure the App signature and certificate fingerprints are correct<br>
+                    4. Confirm that the redirect URI matches exactly<br>
+                `;
+            } else if (code) {
                 messageElement.classList.add('success');
                 messageElement.textContent = 'Authentication successful! You can now return to the app.';
-                debugInfo.innerHTML = `<strong>Success Details:</strong><br>Code received: ${code.substring(0, 5)}...<br>State: ${state}`;
+                debugInfo.innerHTML += `
+                    <strong>Success Details:</strong><br>
+                    <span style="color: green; font-weight: bold;">Code received: ${code.substring(0, 5)}...</span><br>
+                    State: ${state || '(no state parameter)'}<br>
+                `;
 
                 // Attempt to communicate with the Flutter app
                 try {
                     // For Android
                     if (window.AndroidInterface) {
-                        debugInfo.innerHTML += '<br><br>Using Android Interface to communicate with app';
-                        window.AndroidInterface.receiveAuthCode(code, state);
+                        debugInfo.innerHTML += '<br><strong>Communication Method:</strong><br>Using Android Interface to communicate with app<br>';
+                        console.log('Calling AndroidInterface.receiveAuthCode with code and state');
+                        window.AndroidInterface.receiveAuthCode(code, state || '');
+                        debugInfo.innerHTML += '<span style="color: green;">✓ Called AndroidInterface.receiveAuthCode</span><br>';
                     }
                     // For iOS
                     else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.receiveAuthCode) {
-                        debugInfo.innerHTML += '<br><br>Using iOS WebKit Interface to communicate with app';
+                        debugInfo.innerHTML += '<br><strong>Communication Method:</strong><br>Using iOS WebKit Interface to communicate with app<br>';
+                        console.log('Calling webkit.messageHandlers.receiveAuthCode with code and state');
                         window.webkit.messageHandlers.receiveAuthCode.postMessage({
                             code: code,
-                            state: state
+                            state: state || ''
                         });
+                        debugInfo.innerHTML += '<span style="color: green;">✓ Called webkit.messageHandlers.receiveAuthCode</span><br>';
                     }
                     // If no native interface is available, try to redirect with a custom scheme
                     else {
                         // Try to redirect back to the app with a custom scheme
-                        const redirectUrl = `tiktokposter://auth?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
-                        debugInfo.innerHTML += `<br><br>No native interface found. Attempting to redirect to: ${redirectUrl}`;
+                        const redirectUrl = `tiktokposter://auth?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
+                        debugInfo.innerHTML += `
+                            <br><strong>Communication Method:</strong><br>
+                            No native interface found. Using custom URI scheme.<br>
+                            Redirecting to: ${redirectUrl}<br>
+                            <br>
+                            <strong>If the app doesn't open:</strong><br>
+                            1. Make sure the app is installed<br>
+                            2. Verify that the custom URI scheme is registered in AndroidManifest.xml<br>
+                            3. Try copying this code manually: <strong>${code}</strong><br>
+                        `;
 
                         // Add a slight delay before redirecting
                         setTimeout(function() {
@@ -110,23 +164,59 @@
                     }
                 } catch (e) {
                     console.error('Error communicating with app:', e);
-                    debugInfo.innerHTML += `<br><br>Error communicating with app: ${e.message}`;
+                    debugInfo.innerHTML += `
+                        <br><strong>Error communicating with app:</strong><br>
+                        <span style="color: red;">${e.message}</span><br>
+                        <br>
+                        <strong>Troubleshooting:</strong><br>
+                        1. Try refreshing the page<br>
+                        2. Check if the app is still running<br>
+                        3. Restart the app and try again<br>
+                        4. Manual code: <strong>${code}</strong><br>
+                    `;
                 }
             } else {
                 messageElement.classList.add('error');
-                messageElement.textContent = 'Invalid response from TikTok. Missing authorization code or state.';
+                messageElement.textContent = 'Invalid response from TikTok. Missing authorization code.';
 
                 // Show all received parameters for debugging
-                let paramsText = '<strong>Received Parameters:</strong><br>';
-                for (const [key, value] of urlParams.entries()) {
-                    paramsText += `${key}: ${value}<br>`;
-                }
+                debugInfo.innerHTML += `
+                    <strong>Error:</strong><br>
+                    <span style="color: red; font-weight: bold;">Missing authorization code from TikTok</span><br>
+                    <br>
+                    <strong>Possible Causes:</strong><br>
+                    1. TikTok API authorization failed<br>
+                    2. Incorrect app configuration in TikTok Developer portal<br>
+                    3. Missing or incorrect Android package name, signature, or fingerprints<br>
+                    4. Redirect URI mismatch<br>
+                    <br>
+                `;
 
+                debugInfo.innerHTML += '<strong>URL Search Parameters:</strong><br>';
                 if (urlParams.entries().next().done) {
-                    paramsText += 'No parameters found in URL';
+                    debugInfo.innerHTML += 'No parameters found in URL search<br><br>';
+                } else {
+                    for (const [key, value] of urlParams.entries()) {
+                        debugInfo.innerHTML += `${key}: ${value}<br>`;
+                    }
+                    debugInfo.innerHTML += '<br>';
                 }
 
-                debugInfo.innerHTML = paramsText;
+                debugInfo.innerHTML += '<strong>URL Hash Parameters:</strong><br>';
+                if (hashParams.entries().next().done) {
+                    debugInfo.innerHTML += 'No parameters found in URL hash<br>';
+                } else {
+                    for (const [key, value] of hashParams.entries()) {
+                        debugInfo.innerHTML += `${key}: ${value}<br>`;
+                    }
+                }
+
+                // Add TikTok documentation link
+                debugInfo.innerHTML += `
+                    <br>
+                    <strong>Resources:</strong><br>
+                    <a href="https://developers.tiktok.com/doc/login-kit-android" target="_blank">TikTok Login Kit for Android Documentation</a><br>
+                `;
             }
         });
     </script>
