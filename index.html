@@ -11,6 +11,7 @@
             margin: 0;
             padding: 20px;
             background-color: #f8f8f8;
+            direction: rtl;
         }
         .container {
             max-width: 600px;
@@ -33,12 +34,30 @@
         .error {
             color: #F44336;
         }
+        .button {
+            display: inline-block;
+            background-color: #000;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+        .debug-section {
+            margin-top: 30px;
+            text-align: left;
+            direction: ltr;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>TikTok Authentication</h1>
-        <div id="message" class="message">Processing authentication...</div>
+        <h1>مصادقة TikTok</h1>
+        <div id="message" class="message">جاري معالجة المصادقة...</div>
+        <div id="action-buttons"></div>
     </div>
 
     <script>
@@ -72,103 +91,119 @@
             });
 
             const messageElement = document.getElementById('message');
+            const actionButtons = document.getElementById('action-buttons');
 
             // Create a debug info element
-            const debugInfo = document.createElement('div');
-            debugInfo.style.marginTop = '20px';
-            debugInfo.style.padding = '10px';
-            debugInfo.style.backgroundColor = '#f0f0f0';
-            debugInfo.style.borderRadius = '5px';
-            debugInfo.style.fontSize = '14px';
-            debugInfo.style.textAlign = 'left';
-            document.querySelector('.container').appendChild(debugInfo);
+            const debugSection = document.createElement('div');
+            debugSection.className = 'debug-section';
+            document.querySelector('.container').appendChild(debugSection);
 
             // Show full URL and raw parameters for debugging
-            debugInfo.innerHTML = `
-                <strong>Full URL:</strong><br>
+            debugSection.innerHTML = `
+                <h3>معلومات التصحيح</h3>
+                <strong>الرابط الكامل:</strong><br>
                 ${window.location.href}<br><br>
-                <strong>Raw URL Search:</strong><br>
-                ${window.location.search || '(empty)'}<br><br>
-                <strong>Raw URL Hash:</strong><br>
-                ${window.location.hash || '(empty)'}<br><br>
+                <strong>معلمات البحث:</strong><br>
+                ${window.location.search || '(فارغ)'}<br><br>
+                <strong>معلمات الهاش:</strong><br>
+                ${window.location.hash || '(فارغ)'}<br><br>
             `;
 
             // Add TikTok API configuration info for debugging
-            debugInfo.innerHTML += `
-                <strong>TikTok API Configuration:</strong><br>
+            debugSection.innerHTML += `
+                <strong>إعدادات TikTok API:</strong><br>
                 Redirect URI: https://saqrgia.github.io/tiktok-auth-callback<br>
                 Android Package: com.example.tiktokposter<br>
                 App Signature: 44f08cacfd42664b6377fffbb53cdd6c<br>
-                Certificate Fingerprint: 9F:70:C4:16:E3:88:5F:8A:2B:B2:75:77:58:2A:1D:5B:65:E2:7C:B3:A8:24:58:EC:2E:C6:2C:CF:6F:3A:BB:DD<br>
                 <br>
             `;
 
             if (error) {
                 messageElement.classList.add('error');
-                messageElement.textContent = `Error: ${error}. ${errorDescription || ''}`;
-                debugInfo.innerHTML += `
-                    <strong>Error Details:</strong><br>
-                    <span style="color: red; font-weight: bold;">Error: ${error}</span><br>
-                    Description: ${errorDescription || 'None provided'}<br>
+                messageElement.textContent = `خطأ: ${error}. ${errorDescription || ''}`;
+                debugSection.innerHTML += `
+                    <strong>تفاصيل الخطأ:</strong><br>
+                    <span style="color: red; font-weight: bold;">الخطأ: ${error}</span><br>
+                    الوصف: ${errorDescription || 'غير متوفر'}<br>
                     <br>
-                    <strong>Possible Solutions:</strong><br>
-                    1. Check that your TikTok Developer app settings are correct<br>
-                    2. Verify that the Android package name is set correctly<br>
-                    3. Make sure the App signature and certificate fingerprints are correct<br>
-                    4. Confirm that the redirect URI matches exactly<br>
+                    <strong>الحلول المحتملة:</strong><br>
+                    1. تحقق من صحة إعدادات تطبيق TikTok Developer<br>
+                    2. تأكد من صحة اسم حزمة Android<br>
+                    3. تأكد من صحة توقيع التطبيق وبصمات الشهادة<br>
+                    4. تأكد من تطابق عنوان إعادة التوجيه بالضبط<br>
                 `;
+
+                // Add a retry button
+                const retryButton = document.createElement('a');
+                retryButton.className = 'button';
+                retryButton.textContent = 'المحاولة مرة أخرى';
+                retryButton.href = 'tiktokposter://auth/retry';
+                actionButtons.appendChild(retryButton);
             } else if (code) {
                 messageElement.classList.add('success');
-                messageElement.textContent = 'Authentication successful! You can now return to the app.';
-                debugInfo.innerHTML += `
-                    <strong>Success Details:</strong><br>
-                    <span style="color: green; font-weight: bold;">Code received: ${code.substring(0, 5)}...</span><br>
-                    State: ${state || '(no state parameter)'}<br>
+                messageElement.textContent = 'تمت المصادقة بنجاح! يمكنك العودة إلى التطبيق الآن.';
+                debugSection.innerHTML += `
+                    <strong>تفاصيل النجاح:</strong><br>
+                    <span style="color: green; font-weight: bold;">تم استلام الرمز: ${code.substring(0, 5)}...</span><br>
+                    الحالة: ${state || '(لا توجد معلمة حالة)'}<br>
                 `;
 
                 // Attempt to communicate with the Flutter app
                 try {
                     // IMPORTANT: Do not encode or decode the code
                     // Pass it exactly as received from TikTok
-                    debugInfo.innerHTML += `
-                        <br><strong>Authorization Code:</strong><br>
-                        Raw code: ${code}<br>
+                    debugSection.innerHTML += `
+                        <br><strong>رمز التفويض:</strong><br>
+                        الرمز الأصلي: ${code}<br>
                         <br>
-                        <strong>Note:</strong> TikTok API requires the code to be used exactly as received, without any encoding or decoding.<br>
+                        <strong>ملاحظة:</strong> تتطلب واجهة برمجة تطبيقات TikTok استخدام الرمز كما تم استلامه، دون أي ترميز أو فك ترميز.<br>
                     `;
+
+                    // Create a button to manually return to the app
+                    const returnButton = document.createElement('a');
+                    returnButton.className = 'button';
+                    returnButton.textContent = 'العودة إلى التطبيق';
+                    returnButton.href = `tiktokposter://auth?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
+                    actionButtons.appendChild(returnButton);
 
                     // For Android
                     if (window.AndroidInterface) {
-                        debugInfo.innerHTML += '<br><strong>Communication Method:</strong><br>Using Android Interface to communicate with app<br>';
+                        debugSection.innerHTML += '<br><strong>طريقة الاتصال:</strong><br>استخدام واجهة Android للتواصل مع التطبيق<br>';
                         console.log('Calling AndroidInterface.receiveAuthCode with code and state');
                         // Pass the raw code - the Android interface will handle URL decoding
                         window.AndroidInterface.receiveAuthCode(code, state || '');
-                        debugInfo.innerHTML += '<span style="color: green;">✓ Called AndroidInterface.receiveAuthCode</span><br>';
+                        debugSection.innerHTML += '<span style="color: green;">✓ تم استدعاء AndroidInterface.receiveAuthCode</span><br>';
+
+                        // Show success message
+                        messageElement.textContent = 'تمت المصادقة بنجاح! جاري العودة إلى التطبيق...';
                     }
                     // For iOS
                     else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.receiveAuthCode) {
-                        debugInfo.innerHTML += '<br><strong>Communication Method:</strong><br>Using iOS WebKit Interface to communicate with app<br>';
+                        debugSection.innerHTML += '<br><strong>طريقة الاتصال:</strong><br>استخدام واجهة iOS WebKit للتواصل مع التطبيق<br>';
                         console.log('Calling webkit.messageHandlers.receiveAuthCode with code and state');
                         window.webkit.messageHandlers.receiveAuthCode.postMessage({
                             code: code,
                             state: state || ''
                         });
-                        debugInfo.innerHTML += '<span style="color: green;">✓ Called webkit.messageHandlers.receiveAuthCode</span><br>';
+                        debugSection.innerHTML += '<span style="color: green;">✓ تم استدعاء webkit.messageHandlers.receiveAuthCode</span><br>';
+
+                        // Show success message
+                        messageElement.textContent = 'تمت المصادقة بنجاح! جاري العودة إلى التطبيق...';
                     }
                     // If no native interface is available, try to redirect with a custom scheme
                     else {
                         // Try to redirect back to the app with a custom scheme
                         // Pass the code exactly as received, without encoding
-                        const redirectUrl = `tiktokposter://auth?code=${code}&state=${state || ''}`;
-                        debugInfo.innerHTML += `
-                            <br><strong>Communication Method:</strong><br>
-                            No native interface found. Using custom URI scheme.<br>
-                            Redirecting to: ${redirectUrl}<br>
+                        const redirectUrl = `tiktokposter://auth?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
+                        debugSection.innerHTML += `
+                            <br><strong>طريقة الاتصال:</strong><br>
+                            لم يتم العثور على واجهة أصلية. استخدام مخطط URI مخصص.<br>
+                            إعادة التوجيه إلى: ${redirectUrl}<br>
                             <br>
-                            <strong>If the app doesn't open:</strong><br>
-                            1. Make sure the app is installed<br>
-                            2. Verify that the custom URI scheme is registered in AndroidManifest.xml<br>
-                            3. Try copying this code manually: <strong>${code}</strong><br>
+                            <strong>إذا لم يتم فتح التطبيق:</strong><br>
+                            1. تأكد من تثبيت التطبيق<br>
+                            2. تحقق من تسجيل مخطط URI المخصص في AndroidManifest.xml<br>
+                            3. حاول نسخ هذا الرمز يدويًا: <strong>${code}</strong><br>
                         `;
 
                         // Add a slight delay before redirecting
@@ -178,59 +213,73 @@
                     }
                 } catch (e) {
                     console.error('Error communicating with app:', e);
-                    debugInfo.innerHTML += `
-                        <br><strong>Error communicating with app:</strong><br>
+                    debugSection.innerHTML += `
+                        <br><strong>خطأ في التواصل مع التطبيق:</strong><br>
                         <span style="color: red;">${e.message}</span><br>
                         <br>
-                        <strong>Troubleshooting:</strong><br>
-                        1. Try refreshing the page<br>
-                        2. Check if the app is still running<br>
-                        3. Restart the app and try again<br>
-                        4. Manual code: <strong>${code}</strong><br>
+                        <strong>استكشاف الأخطاء وإصلاحها:</strong><br>
+                        1. حاول تحديث الصفحة<br>
+                        2. تحقق مما إذا كان التطبيق لا يزال قيد التشغيل<br>
+                        3. أعد تشغيل التطبيق وحاول مرة أخرى<br>
+                        4. الرمز اليدوي: <strong>${code}</strong><br>
                     `;
+
+                    // Create a button to manually return to the app
+                    const manualButton = document.createElement('a');
+                    manualButton.className = 'button';
+                    manualButton.textContent = 'العودة إلى التطبيق يدويًا';
+                    manualButton.href = `tiktokposter://auth?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
+                    actionButtons.appendChild(manualButton);
                 }
             } else {
                 messageElement.classList.add('error');
-                messageElement.textContent = 'Invalid response from TikTok. Missing authorization code.';
+                messageElement.textContent = 'استجابة غير صالحة من TikTok. رمز التفويض مفقود.';
 
                 // Show all received parameters for debugging
-                debugInfo.innerHTML += `
-                    <strong>Error:</strong><br>
-                    <span style="color: red; font-weight: bold;">Missing authorization code from TikTok</span><br>
+                debugSection.innerHTML += `
+                    <strong>خطأ:</strong><br>
+                    <span style="color: red; font-weight: bold;">رمز التفويض مفقود من TikTok</span><br>
                     <br>
-                    <strong>Possible Causes:</strong><br>
-                    1. TikTok API authorization failed<br>
-                    2. Incorrect app configuration in TikTok Developer portal<br>
-                    3. Missing or incorrect Android package name, signature, or fingerprints<br>
-                    4. Redirect URI mismatch<br>
+                    <strong>الأسباب المحتملة:</strong><br>
+                    1. فشل تفويض واجهة برمجة تطبيقات TikTok<br>
+                    2. تكوين تطبيق غير صحيح في بوابة مطوري TikTok<br>
+                    3. اسم حزمة Android أو توقيع أو بصمات مفقودة أو غير صحيحة<br>
+                    4. عدم تطابق عنوان إعادة التوجيه<br>
                     <br>
                 `;
 
-                debugInfo.innerHTML += '<strong>URL Search Parameters:</strong><br>';
+                debugSection.innerHTML += '<strong>معلمات البحث في URL:</strong><br>';
                 if (urlParams.entries().next().done) {
-                    debugInfo.innerHTML += 'No parameters found in URL search<br><br>';
+                    debugSection.innerHTML += 'لم يتم العثور على معلمات في بحث URL<br><br>';
                 } else {
                     for (const [key, value] of urlParams.entries()) {
-                        debugInfo.innerHTML += `${key}: ${value}<br>`;
+                        debugSection.innerHTML += `${key}: ${value}<br>`;
                     }
-                    debugInfo.innerHTML += '<br>';
+                    debugSection.innerHTML += '<br>';
                 }
 
-                debugInfo.innerHTML += '<strong>URL Hash Parameters:</strong><br>';
+                debugSection.innerHTML += '<strong>معلمات الهاش في URL:</strong><br>';
                 if (hashParams.entries().next().done) {
-                    debugInfo.innerHTML += 'No parameters found in URL hash<br>';
+                    debugSection.innerHTML += 'لم يتم العثور على معلمات في هاش URL<br>';
                 } else {
                     for (const [key, value] of hashParams.entries()) {
-                        debugInfo.innerHTML += `${key}: ${value}<br>`;
+                        debugSection.innerHTML += `${key}: ${value}<br>`;
                     }
                 }
 
                 // Add TikTok documentation link
-                debugInfo.innerHTML += `
+                debugSection.innerHTML += `
                     <br>
-                    <strong>Resources:</strong><br>
-                    <a href="https://developers.tiktok.com/doc/login-kit-android" target="_blank">TikTok Login Kit for Android Documentation</a><br>
+                    <strong>الموارد:</strong><br>
+                    <a href="https://developers.tiktok.com/doc/login-kit-android" target="_blank">وثائق TikTok Login Kit لنظام Android</a><br>
                 `;
+
+                // Add a retry button
+                const retryButton = document.createElement('a');
+                retryButton.className = 'button';
+                retryButton.textContent = 'المحاولة مرة أخرى';
+                retryButton.href = 'tiktokposter://auth/retry';
+                actionButtons.appendChild(retryButton);
             }
         });
     </script>
